@@ -1,0 +1,79 @@
+import random
+
+def generate_chromosome(length):
+    return [random.choice([0, 1]) for _ in range(length)]
+
+def evaluate_fitness(chromosome):
+    return sum(chromosome)
+
+def roulette_wheel_selection(population, fitnesses):
+    total_fitness = sum(fitnesses)
+    probabilities = [fit / total_fitness for fit in fitnesses]
+    selected = []
+    for _ in range(len(population)):
+        r = random.random()
+        cumulative_prob = 0
+        for i, prob in enumerate(probabilities):
+            cumulative_prob += prob
+            if r <= cumulative_prob:
+                selected.append(population[i])
+                break
+    return selected
+
+def calculate_cumulative_probabilities(probabilities):
+    cumulative_probs = [probabilities[0]]
+    for i in range(1, len(probabilities)):
+        cumulative_probs.append(cumulative_probs[i - 1] + probabilities[i])
+    return cumulative_probs
+
+def one_point_crossover(parent1, parent2, p_cross):
+    if random.random() > p_cross:
+        return parent1
+    crossover_point = random.randint(1, len(parent1) - 1)
+    offspring = parent1[:crossover_point] + parent2[crossover_point:]
+    return offspring
+
+def bit_flip_mutation(chromosome, p_mut):
+    mutated_chromosome = chromosome[:]
+    for i in range(len(mutated_chromosome)):
+        if random.random() < p_mut:
+            mutated_chromosome[i] = 1 - mutated_chromosome[i]
+    return mutated_chromosome
+
+def genetic_algorithm(population_size, num_generations, chromosome_length, p_cross, p_mut, random_seed=None):
+    random.seed(random_seed)
+    
+    population = [generate_chromosome(chromosome_length) for _ in range(population_size)]
+    best_hist = []
+    for _ in range(num_generations):
+        fitnesses = [evaluate_fitness(chromosome) for chromosome in population]
+        best_hist.append(max(fitnesses))
+        
+        # Elitism: keeping the best two individuals
+        sorted_population = [x for _, x in sorted(zip(fitnesses, population), reverse=True)]
+        new_population = sorted_population[:2]
+        
+        while len(new_population) < population_size:
+            selected_parents = roulette_wheel_selection(population, fitnesses)
+            parent1, parent2 = selected_parents[0], selected_parents[1]
+            offspring = one_point_crossover(parent1, parent2, p_cross)
+            offspring = bit_flip_mutation(offspring, p_mut)
+            new_population.append(offspring)
+        
+        population = new_population
+    
+    avg_fitness = sum(best_hist) / len(best_hist)
+    return population, best_hist, avg_fitness
+
+# Example usage
+random_seed = 42  # Set your desired random seed here
+runs = 10
+for i in range(runs):
+    population, best_hist, avg_fitness = genetic_algorithm(population_size=20, num_generations=100, chromosome_length=5, p_cross=0.6, p_mut=0.05, random_seed=random_seed + i)
+    print(f"Run {i+1}:")
+    print("Final Population:")
+    print(population)
+    print("Best Fitness History:")
+    print(best_hist)
+    print("Average Fitness:")
+    print(avg_fitness)
