@@ -1,0 +1,90 @@
+import random
+import numpy as np
+import math
+
+def standard_decoder(variable, variable_min, variable_max, precision):
+    variable_len = len(variable)
+    number_of_all_solutions = 2 ** variable_len
+    var_summation = 0
+    for i in range(variable_len):
+        var_summation += variable[i] * (2 ** (variable_len - i - 1))
+
+    variable_real_value = variable_min + (var_summation / number_of_all_solutions) * (variable_max - variable_min)
+    return variable_real_value
+
+def gray_decoder(variable, variable_min, variable_max, precision):
+    binary = gray_to_binary(variable)
+    return standard_decoder(binary, variable_min, variable_max, precision)
+
+def gray_to_binary(gray):
+    binary = [gray[0]]
+    for i in range(1, len(gray)):
+        binary.append(gray[i] ^ gray[i - 1])
+    return binary
+
+def evaluate_fitness(x1, x2):
+    return 8 - (x1 + 0.0317) ** 2 + x2 ** 2
+
+def fitness_with_constraint(x1, x2):
+    penalty = abs(x1 + x2 - 1)
+    return evaluate_fitness(x1, x2) - penalty
+
+def calculate_fitness(chromosome, variable_min, variable_max, precision, constraint=False):
+    x1 = standard_decoder(chromosome[:precision], variable_min, variable_max, precision)
+    x2 = standard_decoder(chromosome[precision:], variable_min, variable_max, precision)
+    if constraint:
+        return fitness_with_constraint(x1, x2)
+    else:
+        return evaluate_fitness(x1, x2)
+    
+#part2
+
+def genetic_algorithm(population_size, num_generations, chromosome_length, p_cross, p_mut, variable_min, variable_max, precision, decoding_method='standard', constraint=False):
+    population = [generate_chromosome(chromosome_length) for _ in range(population_size)]
+    best_fitnesses = []
+    avg_fitnesses = []
+
+    for _ in range(num_generations):
+        fitnesses = [calculate_fitness(chromosome, variable_min, variable_max, precision, constraint) for chromosome in population]
+        best_fitnesses.append(max(fitnesses))
+        avg_fitnesses.append(sum(fitnesses) / population_size)
+
+        sorted_population = [x for _, x in sorted(zip(fitnesses, population), reverse=True)]
+        new_population = sorted_population[:2]
+
+        while len(new_population) < population_size:
+            selected_parents = roulette_wheel_selection(population, fitnesses)
+            parent1, parent2 = selected_parents[0], selected_parents[1]
+            offspring = one_point_crossover(parent1, parent2, p_cross)
+            offspring = bit_flip_mutation(offspring, p_mut)
+            new_population.append(offspring)
+
+        population = new_population
+
+    return best_fitnesses, avg_fitnesses
+
+# Example usage
+p_cross = 0.6
+p_mut = 0.05
+population_size = 100
+num_generations = 100
+chromosome_length = 20
+variable_min = -2
+variable_max = 2
+precision = 10
+
+# Part 1: Comparing decoding methods and precisions
+best_fitnesses_std, avg_fitnesses_std = genetic_algorithm(population_size, num_generations, chromosome_length, p_cross, p_mut, variable_min, variable_max, precision, decoding_method='standard')
+best_fitnesses_gray, avg_fitnesses_gray = genetic_algorithm(population_size, num_generations, chromosome_length, p_cross, p_mut, variable_min, variable_max, precision, decoding_method='gray')
+
+# Part 2: Constraint handling
+best_fitnesses_constraint, avg_fitnesses_constraint = genetic_algorithm(population_size, num_generations, chromosome_length, p_cross, p_mut, variable_min, variable_max, precision, constraint=True)
+
+# Print the results
+print("Part 1: Comparing decoding methods and precisions")
+print("Standard Decoding - Best Fitness:", max(best_fitnesses_std), "Average Fitness:", sum(avg_fitnesses_std) / num_generations)
+print("Gray Decoding - Best Fitness:", max(best_fitnesses_gray), "Average Fitness:", sum(avg_fitnesses_gray) / num_generations)
+
+print("\nPart 2: Constraint Handling")
+print("Best Fitness:", max(best_fitnesses_constraint), "Average Fitness:", sum(avg_fitnesses_constraint) / num_generations)
+
