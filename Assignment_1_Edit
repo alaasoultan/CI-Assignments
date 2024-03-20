@@ -1,0 +1,85 @@
+import random
+import numpy as np
+import math
+
+def generate_chromosome(length):
+    return [random.choice([0, 1]) for _ in range(length)]
+
+def evaluate_fitness(chromosome):
+    return sum(chromosome)
+
+def roulette_wheel_selection(population, fitnesses):
+    total_fitness = sum(fitnesses)
+    probabilities = [fit / total_fitness for fit in fitnesses]
+    selected = []
+    for _ in range(len(population)):
+        r = random.random()
+        cumulative_prob = 0
+        for i, prob in enumerate(probabilities):
+            cumulative_prob += prob
+            if r <= cumulative_prob:
+                selected.append(population[i])
+                break
+    return selected
+
+def one_point_crossover(parent1, parent2, p_cross):
+    if random.random() > p_cross:
+        return parent1
+    crossover_point = random.randint(1, len(parent1) - 1)
+    offspring = parent1[:crossover_point] + parent2[crossover_point:]
+    return offspring
+
+def bit_flip_mutation(chromosome, p_mut):
+    mutated_chromosome = chromosome[:]
+    for i in range(len(mutated_chromosome)):
+        if random.random() < p_mut:
+            mutated_chromosome[i] = 1 - mutated_chromosome[i]
+    return mutated_chromosome
+
+def genetic_algorithm(population_size, num_generations, chromosome_length, p_cross, p_mut, random_seed=None):
+    random.seed(random_seed)
+    
+    best_fitnesses = []
+    avg_fitnesses = []
+    
+    for _ in range(10):  # 10 runs
+        population = [generate_chromosome(chromosome_length) for _ in range(population_size)]
+        best_hist = []
+        avg_hist = []
+        for _ in range(num_generations):
+            fitnesses = [evaluate_fitness(chromosome) for chromosome in population]
+            best_hist.append(max(fitnesses))
+            avg_hist.append(sum(fitnesses) / population_size)
+            
+            # Elitism: keeping the best two individuals
+            sorted_population = [x for _, x in sorted(zip(fitnesses, population), reverse=True)]
+            new_population = sorted_population[:2]
+            
+            while len(new_population) < population_size:
+                selected_parents = roulette_wheel_selection(population, fitnesses)
+                parent1, parent2 = selected_parents[0], selected_parents[1]
+                offspring = one_point_crossover(parent1, parent2, p_cross)
+                offspring = bit_flip_mutation(offspring, p_mut)
+                new_population.append(offspring)
+            
+            population = new_population
+        
+        best_fitnesses.append(best_hist)
+        avg_fitnesses.append(avg_hist)
+    
+    return best_fitnesses, avg_fitnesses
+
+# Example usage
+p_cross = 0.6
+p_mut = 0.05
+population_size = 20
+num_generations = 100
+chromosome_length = 20
+
+best_fitnesses, avg_fitnesses = genetic_algorithm(population_size, num_generations, chromosome_length, p_cross, p_mut)
+
+# Print the vectors of highest fitness and average fitness at each generation
+for i in range(num_generations):
+    highest_fitness = max(max(run[i] for run in best_fitnesses) for i in range(100))
+    avg_fitness = sum(sum(run[i] for run in avg_fitnesses) / len(avg_fitnesses) for i in range(100))
+    print(f"Generation {i+1}: Highest Fitness = {highest_fitness}, Average Fitness = {avg_fitness}")
