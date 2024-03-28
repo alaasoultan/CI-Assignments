@@ -1,0 +1,80 @@
+import random
+import numpy as np
+import math
+
+def init_pop(pop_size, R_max, R_min):
+    return [(np.random.uniform(R_min, R_max), np.random.uniform(R_min, R_max)) for _ in range(pop_size)]
+
+def arithmetic_cross(two_parents, Pcross=0.6):
+    parent1, parent2 = two_parents
+    child1 = Pcross * parent1 + (1 - Pcross) * parent2
+    child2 = Pcross * parent2 + (1 - Pcross) * parent1
+    return child1, child2
+
+def gaussian_mutate(individual, sigma, pMut, R_max, R_min):
+    mutated = individual + np.random.normal(0, sigma, size=len(individual))
+    mutated = np.clip(mutated, R_min, R_max)
+    if random.random() < pMut:
+        return mutated
+    else:
+        return individual
+
+def tournament(population, k):
+    selected_individuals = []
+    while len(selected_individuals) < 2:
+        participants = random.sample(population, k)
+        winner = max(participants, key=lambda x: x[1])  # Fitness is at index 1
+        selected_individuals.append(winner)
+    return selected_individuals
+
+def standard_decoder(variable, variable_min, variable_max):
+    return variable
+
+def evaluate_fitness(x1, x2):
+    return 8 - (x1 + 0.0317) ** 2 + x2 ** 2
+
+# Genetic Algorithm
+def genetic_algorithm(population_size, num_generations, R_max, R_min, p_cross, p_mut, sigma, k_small, k_large):
+    population = [(x1, x2, evaluate_fitness(x1, x2)) for x1, x2 in init_pop(population_size, R_max, R_min)]
+    best_fitnesses = []
+    avg_fitnesses = []
+
+    for _ in range(num_generations):
+        fitnesses = [individual[2] for individual in population]
+        best_fitnesses.append(max(fitnesses))
+        avg_fitnesses.append(sum(fitnesses) / population_size)
+
+        sorted_population = sorted(population, key=lambda x: x[2], reverse=True)
+        new_population = sorted_population[:2]
+
+        while len(new_population) < population_size:
+            selected_parents = tournament(population, k_small)
+            parent1, parent2 = selected_parents[0][:2], selected_parents[1][:2]
+            offspring1, offspring2 = arithmetic_cross((parent1, parent2), p_cross)
+            offspring1 = gaussian_mutate(offspring1, sigma, p_mut, R_max, R_min)
+            offspring2 = gaussian_mutate(offspring2, sigma, p_mut, R_max, R_min)
+            offspring1_fitness = evaluate_fitness(offspring1[0], offspring1[1])
+            offspring2_fitness = evaluate_fitness(offspring2[0], offspring2[1])
+            offspring1_with_fitness = offspring1[0], offspring1[1], offspring1_fitness
+            offspring2_with_fitness = offspring2[0], offspring2[1], offspring2_fitness
+            new_population.extend([offspring1_with_fitness, offspring2_with_fitness])
+
+        population = new_population
+
+    return best_fitnesses, avg_fitnesses
+
+# Example usage
+p_cross = 0.6
+p_mut = 0.05
+population_size = 100
+num_generations = 100
+R_min = -2
+R_max = 2
+sigma = 0.5
+k_small = 2
+k_large = 20
+
+best_fitnesses, avg_fitnesses = genetic_algorithm(population_size, num_generations, R_max, R_min, p_cross, p_mut, sigma, k_small, k_large)
+
+print("Best Fitness:", max(best_fitnesses), "Average Fitness:", sum(avg_fitnesses) / num_generations)
+
